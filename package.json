@@ -1,0 +1,7 @@
+{
+  "name": "vr-mall-api",
+  "private": true,
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": {}
+}
