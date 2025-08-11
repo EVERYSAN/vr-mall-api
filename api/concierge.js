@@ -1,37 +1,44 @@
-// ✅ これに直す（または、この行ごと削除でもOK）
-export const config = { runtime: 'nodejs' };
-
-const ALLOW = new Set([
-  'https://everysan.github.io',
-  'http://localhost:5173',
-]);
-
-function setCORS(res, origin) {
-  if (origin && ALLOW.has(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
+// api/concierge.js
+import OpenAI from "openai";
 
 export default async function handler(req, res) {
+  // CORS対応
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
   try {
-    const origin = req.headers.origin;
-    setCORS(res, origin);
+    const { message } = req.body;
 
-    if (req.method === 'OPTIONS') return res.status(204).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+    if (!message) {
+      return res.status(400).json({ error: "message is required" });
+    }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const q = body?.message || '（質問なし）';
-
-    // 通信確認用のダミー応答
-    return res.status(200).json({
-      reply: `（テスト応答）「${q}」ですね。入口から本屋に進むとおすすめが並んでいます！`
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
     });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: 'server_error', detail: String(e?.message || e) });
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "あなたはVRショッピングモールの案内係です。" },
+        { role: "user", content: message }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    res.status(200).json({ reply });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 }
