@@ -1,14 +1,35 @@
-// api/concierge.js  ← 新規作成
+// ランタイムを明示（nodejs20.x か 18.x）
+export const config = { runtime: 'nodejs20.x' };  // 18.xでもOK
 
-const ALLOW = ['https://everysan.github.io', 'http://localhost:5173'];
+const allow = new Set(['https://everysan.github.io', 'http://localhost:5173']);
 
-function setCors(req, res) {
-  const origin = req.headers.origin || '';
-  if (ALLOW.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+function setCORS(res, origin) {
+  if (origin && allow.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
+
+export default async function handler(req, res) {
+  try {
+    const origin = req.headers.origin;
+    setCORS(res, origin);
+
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    // ここはそのままでOK（ダミー応答 or OpenAI呼び出し）
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const q = body?.message || '（質問なし）';
+    return res.status(200).json({ reply: `（テスト応答）「${q}」ですね。入口から本屋までご案内します！` });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
 
 module.exports = async (req, res) => {
   try {
