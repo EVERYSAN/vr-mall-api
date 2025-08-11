@@ -1,24 +1,26 @@
-// api/concierge.ts
+// api/concierge.js  ← 新規作成
+
 const ALLOW = ['https://everysan.github.io', 'http://localhost:5173'];
 
-function setCors(req: any, res: any) {
-  const origin = (req.headers.origin as string) || '';
+function setCors(req, res) {
+  const origin = req.headers.origin || '';
   if (ALLOW.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-export default async function handler(req: any, res: any) {
+module.exports = async (req, res) => {
   try {
     setCors(req, res);
     if (req.method === 'OPTIONS') return res.status(204).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const apiKey = process.env.OPENAI_API_KEY;
+
+    // キー未設定でもCORS動作確認できるように仮応答
     if (!apiKey) {
-      // まずは落とさず返す（CORS動作確認用の仮応答）
-      return res.status(200).json({ reply: '（仮応答）OPENAI_API_KEY が未設定です。Vercel の環境変数を設定してください。' });
+      return res.status(200).json({ reply: '（仮応答）OPENAI_API_KEY が未設定です。Vercel 環境変数を設定してください。' });
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
@@ -49,7 +51,7 @@ export default async function handler(req: any, res: any) {
     const data = await r.json();
     const reply = data?.choices?.[0]?.message?.content ?? '（案内を生成できませんでした）';
     return res.status(200).json({ reply });
-  } catch (e: any) {
-    return res.status(500).json({ error: 'server_error', detail: String(e?.message || e) });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error', detail: String(e && e.message ? e.message : e) });
   }
-}
+};
